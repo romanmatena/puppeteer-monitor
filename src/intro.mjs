@@ -8,14 +8,16 @@ import { printCliCommandsTable } from './templates/cli-commands.mjs';
 
 const TITLE = 'Puppeteer Monitor';
 const TAGLINE = 'Browser console, network & DOM capture for debugging and LLM workflows';
-const REPO_URL = 'https://github.com/romanmatena/puppeteer-monitor';
+const NPM_URL = 'https://www.npmjs.com/package/puppeteer-monitor';
+const GITHUB_URL = 'https://github.com/romanmatena/puppeteer-monitor';
 
 export function printAppIntro() {
   console.log('');
   console.log(`${C.bold}${C.brightCyan}  ═══════════════════════════════════════════════════════════════════════════  ${C.reset}`);
   console.log(`${C.bold}${C.brightCyan}                                                                              ${C.reset}`);
   console.log(`${C.bold}${C.brightCyan}    ${C.white}${TITLE}${C.reset}${C.bold}${C.brightCyan}                                                                    ${C.reset}`);
-  console.log(`${C.bold}${C.brightCyan}    ${C.dim}${REPO_URL}${C.reset}${C.bold}${C.brightCyan}${' '.repeat(26)}${C.reset}`);
+  console.log(`${C.bold}${C.brightCyan}    ${C.dim}npm ${NPM_URL}${C.reset}${C.bold}${C.brightCyan}  ${C.reset}`);
+  console.log(`${C.bold}${C.brightCyan}    ${C.dim}github ${GITHUB_URL}${C.reset}${C.bold}${C.brightCyan}${' '.repeat(12)}${C.reset}`);
   console.log(`${C.bold}${C.brightCyan}                                                                              ${C.reset}`);
   console.log(`${C.bold}${C.brightCyan}  ═══════════════════════════════════════════════════════════════════════════  ${C.reset}`);
   console.log('');
