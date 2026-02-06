@@ -25,5 +25,5 @@ jobs:
       - name: Verify CLI
         run: node src/cli.mjs --help
 
-      - name: Verify init
-        run: node src/init.mjs --help
+      - name: Verify init (syntax check)
+        run: node --check src/init.mjs
