@@ -42,6 +42,7 @@ export async function runJoinMode(port, options = {}) {
   const {
     realtime = false,
     outputDir = process.cwd(),
+    paths = null,
     ignorePatterns = [],
     hardTimeout = 0,
     httpPort = 60001,
@@ -62,6 +63,7 @@ export async function runJoinMode(port, options = {}) {
   // Create LogBuffer instance for centralized buffer management
   const logBuffer = new LogBuffer({
     outputDir,
+    paths,
     lazyMode,
     ignorePatterns,
   });

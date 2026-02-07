@@ -25,6 +25,7 @@ export class LogBuffer {
   constructor(options = {}) {
     const {
       outputDir = process.cwd(),
+      paths = null,
       lazyMode = true,
       ignorePatterns = [],
     } = options;
@@ -32,12 +33,21 @@ export class LogBuffer {
     this.outputDir = outputDir;
     this.lazyMode = lazyMode;
 
-    this.CONSOLE_LOG = path.join(outputDir, 'puppeteer-console.log');
-    this.NETWORK_LOG = path.join(outputDir, 'puppeteer-network.log');
-    this.NETWORK_DIR = path.join(outputDir, 'puppeteer-network-log');
-    this.COOKIES_DIR = path.join(outputDir, 'puppeteer-cookies');
-    this.DOM_HTML = path.join(outputDir, 'puppeteer-dom.html');
-    this.SCREENSHOT = path.join(outputDir, 'puppeteer-screenshot.png');
+    if (paths) {
+      this.CONSOLE_LOG = paths.consoleLog;
+      this.NETWORK_LOG = paths.networkLog;
+      this.NETWORK_DIR = paths.networkDir;
+      this.COOKIES_DIR = paths.cookiesDir;
+      this.DOM_HTML = paths.domHtml;
+      this.SCREENSHOT = paths.screenshot;
+    } else {
+      this.CONSOLE_LOG = path.join(outputDir, 'puppeteer-console.log');
+      this.NETWORK_LOG = path.join(outputDir, 'puppeteer-network.log');
+      this.NETWORK_DIR = path.join(outputDir, 'puppeteer-network-log');
+      this.COOKIES_DIR = path.join(outputDir, 'puppeteer-cookies');
+      this.DOM_HTML = path.join(outputDir, 'puppeteer-dom.html');
+      this.SCREENSHOT = path.join(outputDir, 'puppeteer-screenshot.png');
+    }
 
     this.consoleBuffer = [];
     this.networkBuffer = [];

@@ -1,26 +1,24 @@
 #!/usr/bin/env node
 /**
- * Puppeteer Monitor CLI
+ * Browser Monitor CLI
  *
- * Mode is chosen by arguments (before anything else):
- *   (none)     → Interactive: menu (o = open, j = join, q = quit)
- *   --open     → Open mode: launch new Chrome and monitor
- *   --join=PORT→ Join mode: attach to existing Chrome at localhost:PORT (port required)
+ * Global CLI tool – run `browsermonitor` in any project directory.
+ * Configuration in .browsermonitor/settings.json (created on first run).
+ *
+ * Subcommands:
+ *   init         → Run setup (create .browsermonitor/, update agent files)
+ *
+ * Mode is chosen by arguments:
+ *   (none)       → Interactive: menu (o = open, j = join, q = quit)
+ *   --open       → Open mode: launch new Chrome and monitor
+ *   --join=PORT  → Join mode: attach to existing Chrome at localhost:PORT
  *
  * Options:
  *   --realtime       Write logs immediately (default: lazy)
  *   --headless       Run in headless mode (default: GUI)
  *   --timeout=MS     Hard timeout in ms (default: disabled)
- *   --nav-timeout=MS Navigation timeout in ms (default: 60000)
+ *   --nav-timeout=MS Navigation timeout in ms (default: from settings)
  *   --help           Show help
- *
- * Configuration in host package.json:
- *   "puppeteer-monitor": {
- *     "defaultUrl": "https://localhost:5173/",
- *     "headless": false,
- *     "navigationTimeout": 0,
- *     "ignorePatterns": ["CustomNoise"]
- *   }
  */
 
 import { runInteractiveMode, runJoinMode, runOpenMode } from './monitor.mjs';
@@ -29,43 +27,38 @@ import { createHttpServer } from './http-server.mjs';
 import { printApiHelpTable } from './templates/api-help.mjs';
 import { printCliCommandsTable } from './templates/cli-commands.mjs';
 import { askHttpPort } from './utils/ask.mjs';
-import { C } from './utils/colors.mjs';
-import fs from 'fs';
-import path from 'path';
+import { loadSettings, isInitialized, getPaths, ensureDirectories } from './settings.mjs';
+import { runInit } from './init.mjs';
 
-// Load configuration from host package.json
-function loadConfig() {
-  const packageJsonPath = path.join(process.cwd(), 'package.json');
-  try {
-    if (fs.existsSync(packageJsonPath)) {
-      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-      return packageJson['puppeteer-monitor'] || {};
-    }
-  } catch (e) {
-    // Ignore errors reading package.json
-  }
-  return {};
-}
-
-const config = loadConfig();
+// Project root = current working directory
+const projectRoot = process.cwd();
 
 // Parse arguments
 const args = process.argv.slice(2);
 
+// Handle `browsermonitor init` subcommand
+if (args[0] === 'init') {
+  await runInit(projectRoot, { askForUrl: true, updateAgentFiles: true });
+  process.exit(0);
+}
+
 // Show help
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`
-Puppeteer Monitor – capture browser console, network, and DOM for debugging and LLM workflows.
+Browser Monitor – capture browser console, network, and DOM for debugging and LLM workflows.
 
 What it does:
   Connects to Chrome (via Puppeteer) and records console output, network requests, cookies,
   and the current page HTML. Logs can be written to files on demand (lazy) or in real time.
   Useful for debugging frontend apps, E2E flows, and feeding context to AI assistants
-  (e.g. read puppeteer-dom.html for the live DOM).
+  (e.g. read .browsermonitor/.puppeteer/dom.html for the live DOM).
 
 `);
   printCliCommandsTable({ showEntry: true, showUsage: true });
   console.log(`
+Subcommands:
+  init                  Run setup: create .browsermonitor/, settings.json, update agent files
+
 Modes (chosen by flags; only one applies):
   INTERACTIVE (default)   No flag. Asks for project root, then menu:
                             o = open Chrome (launch and monitor)
@@ -80,24 +73,37 @@ Modes (chosen by flags; only one applies):
                           running (e.g. started by a script or on another machine via tunnel).
 
 Options:
-  --port=PORT             HTTP API port (default: 60001; if omitted, you will be asked in interactive)
+  --port=PORT             HTTP API port (default: from settings or 60001)
   --realtime              Write each event to files immediately (default: lazy, buffer in memory)
   --headless              Run Chrome without GUI
   --open                  Go directly to open mode
   --join=PORT             Go directly to join mode (PORT required)
   --timeout=MS            Hard timeout in ms; process exits after (0 = disabled)
-  --nav-timeout=MS        Navigation timeout in ms (default: 60000, 0 = no limit)
+  --nav-timeout=MS        Navigation timeout in ms (default: from settings, 0 = no limit)
   --help, -h              Show this help
 
-Config (package.json "puppeteer-monitor"):
-  defaultUrl, headless, navigationTimeout, ignorePatterns (regex for console filter)
+Config (.browsermonitor/settings.json):
+  defaultUrl, headless, navigationTimeout, ignorePatterns, httpPort, realtime
 
 `);
   printApiHelpTable({ port: 60001, showApi: true, showInteractive: false, showOutputFiles: true });
   process.exit(0);
 }
 
-// ---- Mode dispatch: --open | --join=PORT | standby ----
+// Auto-init on first run
+if (!isInitialized(projectRoot)) {
+  console.log('[browsermonitor] First run detected. Setting up .browsermonitor/ ...');
+  await runInit(projectRoot, { askForUrl: process.stdin.isTTY, updateAgentFiles: true });
+}
+
+// Ensure directories exist (in case user deleted .puppeteer/ subdir)
+ensureDirectories(projectRoot);
+
+// Load settings from .browsermonitor/settings.json
+const config = loadSettings(projectRoot);
+const paths = getPaths(projectRoot);
+
+// ---- Mode dispatch: --open | --join=PORT | interactive ----
 const openMode = args.some((a) => a === '--open' || a.startsWith('--open='));
 const joinArg = args.find((a) => a.startsWith('--join'));
 let joinPort = null;
@@ -114,8 +120,8 @@ if (joinArg) {
   }
 }
 
-// Shared options
-const realtimeMode = args.includes('--realtime');
+// Shared options (CLI args override settings.json)
+const realtimeMode = args.includes('--realtime') || config.realtime;
 const headlessCli = args.includes('--headless');
 const timeoutArg = args.find((a) => a.startsWith('--timeout='));
 const hardTimeout = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 0;
@@ -127,9 +133,9 @@ const urlFromArgs = args.find((a) => !a.startsWith('--'));
 const url = urlFromArgs || config.defaultUrl || 'https://localhost:4000/';
 const headless = headlessCli || config.headless || false;
 const ignorePatterns = config.ignorePatterns || [];
-const outputDir = process.cwd();
+const outputDir = projectRoot;
 
-const DEFAULT_HTTP_PORT = 60001;
+const DEFAULT_HTTP_PORT = config.httpPort || 60001;
 const portArg = args.find((a) => a === '--port' || a.startsWith('--port='));
 let httpPortFromArgs = null;
 if (portArg) {
@@ -164,6 +170,7 @@ if (portArg) {
   const commonOptions = {
     realtime: realtimeMode,
     outputDir,
+    paths,
     ignorePatterns,
     hardTimeout,
     httpPort,

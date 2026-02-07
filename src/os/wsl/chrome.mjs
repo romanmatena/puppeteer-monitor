@@ -5,7 +5,7 @@
  * send their arguments to the existing process via IPC and exit immediately.
  * This means --remote-debugging-port flags on new launches are IGNORED.
  *
- * Chrome Canary is preferred for puppeteer-monitor because it runs as a separate
+ * Chrome Canary is preferred for browsermonitor because it runs as a separate
  * process from regular Chrome, avoiding singleton conflicts.
  */
 
@@ -76,17 +76,17 @@ export function getWindowsLocalAppData() {
  * Delegates to getProfileIdFromProjectDir for consistent projectName + hash.
  *
  * @param {string} projectDir - WSL project directory path
- * @returns {string} Windows-style profile path (in LOCALAPPDATA\puppeteer-monitor\)
+ * @returns {string} Windows-style profile path (in LOCALAPPDATA\browsermonitor\)
  */
 export function getWindowsProfilePath(projectDir) {
   const { profileId } = getProfileIdFromProjectDir(projectDir);
   const localAppData = getWindowsLocalAppData();
-  return `${localAppData}\\puppeteer-monitor\\${profileId}`;
+  return `${localAppData}\\browsermonitor\\${profileId}`;
 }
 
 /**
  * Detect Chrome Canary installation path from WSL.
- * Chrome Canary is preferred for puppeteer-monitor because it runs as a separate
+ * Chrome Canary is preferred for browsermonitor because it runs as a separate
  * process from regular Chrome, avoiding singleton conflicts.
  *
  * @returns {string|null} Windows-style path to Chrome Canary or null if not found
@@ -181,7 +181,7 @@ export function printCanaryInstallInstructions() {
   console.log(`${C.bold}${C.yellow}  CHROME CANARY REQUIRED${C.reset}`);
   console.log(`${C.yellow}═══════════════════════════════════════════════════════════════════════════════${C.reset}`);
   console.log('');
-  console.log(`  For ${C.cyan}launch mode${C.reset}, puppeteer-monitor requires ${C.brightGreen}Chrome Canary${C.reset}.`);
+  console.log(`  For ${C.cyan}launch mode${C.reset}, browsermonitor requires ${C.brightGreen}Chrome Canary${C.reset}.`);
   console.log('');
   console.log(`  ${C.bold}Why Chrome Canary?${C.reset}`);
   console.log(`  • Runs as a ${C.green}separate process${C.reset} from your regular Chrome`);
@@ -191,7 +191,7 @@ export function printCanaryInstallInstructions() {
   console.log(`  ${C.bold}Installation:${C.reset}`);
   console.log(`  1. Download from: ${C.brightCyan}https://www.google.com/chrome/canary/${C.reset}`);
   console.log(`  2. Install normally (will NOT replace your regular Chrome)`);
-  console.log(`  3. Run puppeteer-monitor again`);
+  console.log(`  3. Run browsermonitor again`);
   console.log('');
   console.log(`  ${C.dim}Alternative: Use ${C.cyan}--join=9222${C.reset}${C.dim} to attach to any running Chrome with debug port.${C.reset}`);
   console.log('');
@@ -271,14 +271,19 @@ export function findProjectChrome(instances, projectDir) {
   for (const inst of instances) {
     const instProfile = inst.profile.toLowerCase();
 
-    // Match new format: puppeteer-monitor\{projectName}_{hash}
+    // Match new format: browsermonitor\{projectName}_{hash}
+    if (instProfile.includes('browsermonitor') && instProfile.includes(expectedProfileId)) {
+      return { found: true, instance: inst, matchType: 'exact' };
+    }
+
+    // Legacy match: old puppeteer-monitor format
     if (instProfile.includes('puppeteer-monitor') && instProfile.includes(expectedProfileId)) {
       return { found: true, instance: inst, matchType: 'exact' };
     }
 
     // Legacy match: just project name
     if (instProfile.includes(projectName.toLowerCase()) &&
-        (instProfile.includes('.puppeteer-profile') || instProfile.includes('puppeteer-monitor'))) {
+        (instProfile.includes('.puppeteer-profile') || instProfile.includes('browsermonitor') || instProfile.includes('puppeteer-monitor'))) {
       return { found: true, instance: inst, matchType: 'legacy' };
     }
   }
@@ -399,7 +404,7 @@ export function startChromeOnWindows(chromePath, port, profileDir) {
 }
 
 /**
- * Kill only Chrome processes that have "puppeteer-monitor" in their profile path.
+ * Kill only Chrome processes that have "browsermonitor" in their profile path.
  * This is safe to call - it will NEVER kill the user's regular Chrome browser.
  *
  * @param {boolean} usePowerShell - Use PowerShell instead of wmic (for calling from WSL)
@@ -408,7 +413,7 @@ export function startChromeOnWindows(chromePath, port, profileDir) {
 export function killPuppeteerMonitorChromes(usePowerShell = false) {
   try {
     if (usePowerShell) {
-      const psScript = `$chromes = Get-WmiObject Win32_Process -Filter 'name=''chrome.exe''' | Select-Object ProcessId, CommandLine; $killed = 0; foreach ($chrome in $chromes) { if ($chrome.CommandLine -match 'puppeteer-monitor') { Stop-Process -Id $chrome.ProcessId -Force -ErrorAction SilentlyContinue; $killed++; break } }; Write-Output $killed`;
+      const psScript = `$chromes = Get-WmiObject Win32_Process -Filter 'name=''chrome.exe''' | Select-Object ProcessId, CommandLine; $killed = 0; foreach ($chrome in $chromes) { if ($chrome.CommandLine -match 'browsermonitor|puppeteer-monitor') { Stop-Process -Id $chrome.ProcessId -Force -ErrorAction SilentlyContinue; $killed++; break } }; Write-Output $killed`;
 
       try {
         const result = execFileSync(
@@ -418,7 +423,7 @@ export function killPuppeteerMonitorChromes(usePowerShell = false) {
         );
         const killed = parseInt(result.trim(), 10) || 0;
         if (killed > 0) {
-          log.success('Killed puppeteer-monitor Chrome (PowerShell)');
+          log.success('Killed browsermonitor Chrome (PowerShell)');
         }
         return killed;
       } catch (e) {
@@ -439,7 +444,7 @@ export function killPuppeteerMonitorChromes(usePowerShell = false) {
     for (const line of lines) {
       if (line.includes('CommandLine') && line.includes('ProcessId')) continue;
 
-      if (line.includes('puppeteer-monitor')) {
+      if (line.includes('browsermonitor') || line.includes('puppeteer-monitor')) {
         const pidMatch = line.match(/(\d+)\s*$/);
         if (pidMatch) {
           puppeteerMonitorPids.push(pidMatch[1]);
@@ -452,7 +457,7 @@ export function killPuppeteerMonitorChromes(usePowerShell = false) {
     }
 
     const mainPid = puppeteerMonitorPids[0];
-    log.warn(`Found ${puppeteerMonitorPids.length} Chrome process(es) with puppeteer-monitor profile`);
+    log.warn(`Found ${puppeteerMonitorPids.length} Chrome process(es) with browsermonitor profile`);
     log.info(`Killing Chrome process tree (PID: ${mainPid})...`);
 
     try {
@@ -460,7 +465,7 @@ export function killPuppeteerMonitorChromes(usePowerShell = false) {
         `taskkill.exe /PID ${mainPid} /T /F 2>/dev/null`,
         { encoding: 'utf8', timeout: 10000 }
       );
-      log.success('Killed existing puppeteer-monitor Chrome');
+      log.success('Killed existing browsermonitor Chrome');
       execSync('sleep 1', { encoding: 'utf8' });
       return 1;
     } catch (e) {

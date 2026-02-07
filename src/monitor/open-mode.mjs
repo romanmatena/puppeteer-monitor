@@ -56,6 +56,7 @@ export async function runOpenMode(url, options = {}) {
     realtime = false,
     headless = false,
     outputDir = process.cwd(),
+    paths = null,
     ignorePatterns = [],
     hardTimeout = 0,
     defaultTimeout = 30_000,
@@ -71,12 +72,15 @@ export async function runOpenMode(url, options = {}) {
   // Create LogBuffer instance for centralized buffer management
   const logBuffer = new LogBuffer({
     outputDir,
+    paths,
     lazyMode,
     ignorePatterns,
   });
 
+  // Chrome profile: stays in project dir or Windows LOCALAPPDATA (not inside .browsermonitor)
   const USER_DATA_DIR = path.join(outputDir, '.puppeteer-profile');
-  const PID_FILE = path.join(outputDir, '.puppeteer-chrome.pid');
+  // PID file goes into .browsermonitor/ when paths available
+  const PID_FILE = paths ? paths.pidFile : path.join(outputDir, '.puppeteer-chrome.pid');
 
   // HTTP server for LLM dump endpoint
   let httpServer = null;

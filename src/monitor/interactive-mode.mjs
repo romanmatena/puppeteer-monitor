@@ -14,6 +14,7 @@ import { printBulletBox, printInteractiveMenuBlock, printModeHeading } from '../
 import { createTable, printTable } from '../templates/table-helper.mjs';
 import { buildWaitForChromeContent } from '../templates/wait-for-chrome.mjs';
 import { writeStatusLine, clearStatusLine } from '../utils/status-line.mjs';
+import { getPaths, ensureDirectories } from '../settings.mjs';
 
 /**
  * Collect Chrome instances with remote debugging (for interactive "join").
@@ -145,6 +146,7 @@ export async function runInteractiveMode(options, deps) {
     hardTimeout = 0,
     navigationTimeout = 60_000,
     outputDir: optionsOutputDir = process.cwd(),
+    paths: optionsPaths = null,
     ignorePatterns = [],
     httpPort = 60001,
   } = options;
@@ -155,6 +157,12 @@ export async function runInteractiveMode(options, deps) {
   const outputDir = process.stdin.isTTY
     ? await askProjectDirForOpen(process.cwd())
     : (optionsOutputDir || process.cwd());
+
+  // Recompute paths if project root changed from CLI's original
+  const paths = (outputDir !== optionsOutputDir && optionsPaths)
+    ? getPaths(outputDir)
+    : (optionsPaths || getPaths(outputDir));
+  ensureDirectories(outputDir);
 
   const profileLoc = getChromeProfileLocation(outputDir);
   const cmdStderrLines = getLastCmdStderrAndClear();
@@ -212,6 +220,7 @@ export async function runInteractiveMode(options, deps) {
         realtime,
         headless,
         outputDir,
+        paths,
         ignorePatterns,
         hardTimeout,
         navigationTimeout,
@@ -252,6 +261,7 @@ export async function runInteractiveMode(options, deps) {
       await runJoinMode(port, {
         realtime,
         outputDir,
+        paths,
         ignorePatterns,
         hardTimeout,
         defaultUrl,
