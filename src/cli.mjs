@@ -29,16 +29,14 @@ import { printCliCommandsTable } from './templates/cli-commands.mjs';
 import { askHttpPort } from './utils/ask.mjs';
 import { loadSettings, isInitialized, getPaths, ensureDirectories } from './settings.mjs';
 import { runInit } from './init.mjs';
-
-// Project root = current working directory
-const projectRoot = process.cwd();
+import { askProjectDirForOpen } from './monitor/interactive-mode.mjs';
 
 // Parse arguments
 const args = process.argv.slice(2);
 
 // Handle `browsermonitor init` subcommand
 if (args[0] === 'init') {
-  await runInit(projectRoot, { askForUrl: true, updateAgentFiles: true });
+  await runInit(process.cwd(), { askForUrl: true, updateAgentFiles: true });
   process.exit(0);
 }
 
@@ -90,19 +88,6 @@ Config (.browsermonitor/settings.json):
   process.exit(0);
 }
 
-// Auto-init on first run
-if (!isInitialized(projectRoot)) {
-  console.log('[browsermonitor] First run detected. Setting up .browsermonitor/ ...');
-  await runInit(projectRoot, { askForUrl: process.stdin.isTTY, updateAgentFiles: true });
-}
-
-// Ensure directories exist (in case user deleted .puppeteer/ subdir)
-ensureDirectories(projectRoot);
-
-// Load settings from .browsermonitor/settings.json
-const config = loadSettings(projectRoot);
-const paths = getPaths(projectRoot);
-
 // ---- Mode dispatch: --open | --join=PORT | interactive ----
 const openMode = args.some((a) => a === '--open' || a.startsWith('--open='));
 const joinArg = args.find((a) => a.startsWith('--join'));
@@ -120,33 +105,52 @@ if (joinArg) {
   }
 }
 
-// Shared options (CLI args override settings.json)
-const realtimeMode = args.includes('--realtime') || config.realtime;
-const headlessCli = args.includes('--headless');
-const timeoutArg = args.find((a) => a.startsWith('--timeout='));
-const hardTimeout = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 0;
-const navTimeoutArg = args.find((a) => a.startsWith('--nav-timeout='));
-const navigationTimeout = navTimeoutArg
-  ? parseInt(navTimeoutArg.split('=')[1], 10)
-  : (config.navigationTimeout !== undefined ? config.navigationTimeout : 60_000);
-const urlFromArgs = args.find((a) => !a.startsWith('--'));
-const url = urlFromArgs || config.defaultUrl || 'https://localhost:4000/';
-const headless = headlessCli || config.headless || false;
-const ignorePatterns = config.ignorePatterns || [];
-const outputDir = projectRoot;
-
-const DEFAULT_HTTP_PORT = config.httpPort || 60001;
-const portArg = args.find((a) => a === '--port' || a.startsWith('--port='));
-let httpPortFromArgs = null;
-if (portArg) {
-  const val = portArg.includes('=') ? portArg.split('=')[1] : '';
-  const num = parseInt(val, 10);
-  if (!Number.isNaN(num) && num >= 1 && num <= 65535) httpPortFromArgs = num;
-}
+const isInteractive = !openMode && joinPort === null;
 
 (async () => {
+  // 1. Intro
   printAppIntro();
 
+  // 2. Determine project root
+  //    Interactive: ask user. Open/Join: use cwd.
+  const projectRoot = isInteractive && process.stdin.isTTY
+    ? await askProjectDirForOpen(process.cwd())
+    : process.cwd();
+
+  // 3. Init if needed (create .browsermonitor/, settings.json)
+  if (!isInitialized(projectRoot)) {
+    await runInit(projectRoot, { askForUrl: process.stdin.isTTY, updateAgentFiles: true });
+  }
+  ensureDirectories(projectRoot);
+
+  // 4. Load config
+  const config = loadSettings(projectRoot);
+  const paths = getPaths(projectRoot);
+
+  // CLI args override settings.json
+  const realtimeMode = args.includes('--realtime') || config.realtime;
+  const headlessCli = args.includes('--headless');
+  const timeoutArg = args.find((a) => a.startsWith('--timeout='));
+  const hardTimeout = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 0;
+  const navTimeoutArg = args.find((a) => a.startsWith('--nav-timeout='));
+  const navigationTimeout = navTimeoutArg
+    ? parseInt(navTimeoutArg.split('=')[1], 10)
+    : (config.navigationTimeout !== undefined ? config.navigationTimeout : 60_000);
+  const urlFromArgs = args.find((a) => !a.startsWith('--'));
+  const url = urlFromArgs || config.defaultUrl || 'https://localhost:4000/';
+  const headless = headlessCli || config.headless || false;
+  const ignorePatterns = config.ignorePatterns || [];
+
+  const DEFAULT_HTTP_PORT = config.httpPort || 60001;
+  const portArg = args.find((a) => a === '--port' || a.startsWith('--port='));
+  let httpPortFromArgs = null;
+  if (portArg) {
+    const val = portArg.includes('=') ? portArg.split('=')[1] : '';
+    const num = parseInt(val, 10);
+    if (!Number.isNaN(num) && num >= 1 && num <= 65535) httpPortFromArgs = num;
+  }
+
+  // 5. Show API/output info
   printApiHelpTable({ port: DEFAULT_HTTP_PORT, showApi: true, showInteractive: false, showOutputFiles: true, noLeadingNewline: true });
 
   const httpPort =
@@ -169,7 +173,7 @@ if (portArg) {
 
   const commonOptions = {
     realtime: realtimeMode,
-    outputDir,
+    outputDir: projectRoot,
     paths,
     ignorePatterns,
     hardTimeout,
@@ -178,6 +182,7 @@ if (portArg) {
     sharedHttpServer,
   };
 
+  // 6. Dispatch to mode
   if (openMode) {
     console.log(`  [CLI] Open mode → ${url}`);
     await runOpenMode(url, {

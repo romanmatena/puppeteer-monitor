@@ -153,16 +153,9 @@ export async function runInteractiveMode(options, deps) {
 
   const { runOpenMode, runJoinMode } = deps;
 
-  // Ask for project root when interactive; otherwise use option/cwd
-  const outputDir = process.stdin.isTTY
-    ? await askProjectDirForOpen(process.cwd())
-    : (optionsOutputDir || process.cwd());
-
-  // Recompute paths if project root changed from CLI's original
-  const paths = (outputDir !== optionsOutputDir && optionsPaths)
-    ? getPaths(outputDir)
-    : (optionsPaths || getPaths(outputDir));
-  ensureDirectories(outputDir);
+  // Project root and paths already determined by cli.mjs
+  const outputDir = optionsOutputDir || process.cwd();
+  const paths = optionsPaths || getPaths(outputDir);
 
   const profileLoc = getChromeProfileLocation(outputDir);
   const cmdStderrLines = getLastCmdStderrAndClear();
