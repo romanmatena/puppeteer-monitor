@@ -49,13 +49,13 @@ export function getPaths(projectRoot) {
 }
 
 /**
- * Check if .browsermonitor/ directory exists (first-run detection).
+ * Check if settings.json exists (first-run detection).
  * @param {string} projectRoot
  * @returns {boolean}
  */
 export function isInitialized(projectRoot) {
-  const { bmDir } = getPaths(projectRoot);
-  return fs.existsSync(bmDir);
+  const { settingsFile } = getPaths(projectRoot);
+  return fs.existsSync(settingsFile);
 }
 
 /**
