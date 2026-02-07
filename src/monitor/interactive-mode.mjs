@@ -46,26 +46,6 @@ export async function getChromeInstances() {
 }
 
 /**
- * Ask user for default URL (single line, stdin.once so stdin stays open).
- */
-function askDefaultUrl(defaultValue) {
-  return new Promise((resolve) => {
-    const wasRaw = process.stdin.isTTY && process.stdin.isRaw;
-    if (wasRaw) process.stdin.setRawMode(false);
-
-    process.stdout.write(`  ${C.cyan}Default URL${C.reset} [${C.dim}${defaultValue}${C.reset}]: `);
-    process.stdin.resume();
-    process.stdin.setEncoding('utf8');
-    process.stdin.once('data', (chunk) => {
-      process.stdin.pause();
-      if (wasRaw && process.stdin.isTTY) process.stdin.setRawMode(true);
-      const trimmed = chunk.toString().trim().split('\n')[0].trim();
-      resolve(trimmed || defaultValue);
-    });
-  });
-}
-
-/**
  * Ask user for HTTP API port (single line, stdin.once so stdin stays open).
  */
 function askHttpPort(defaultPort) {
@@ -151,16 +131,14 @@ export async function runInteractiveMode(options, deps) {
   const outputDir = optionsOutputDir || process.cwd();
   const paths = optionsPaths || getPaths(outputDir);
 
-  // First run: ask for defaultUrl and httpPort, save, update agent files
+  // First run: ask for httpPort, save, update agent files
   if (!isInitialized(outputDir) && process.stdin.isTTY) {
     ensureDirectories(outputDir);
 
-    defaultUrl = await askDefaultUrl(config.defaultUrl || defaultUrl);
     httpPort = await askHttpPort(config.httpPort || httpPort);
 
     saveSettings(outputDir, {
       ...DEFAULT_SETTINGS,
-      defaultUrl,
       httpPort,
     });
 
