@@ -8,7 +8,7 @@ import { printCliCommandsTable } from './templates/cli-commands.mjs';
 
 const TITLE = 'Browser Monitor';
 const TAGLINE = 'Browser console, network & DOM capture for debugging and LLM workflows';
-const NPM_URL = 'https://www.npmjs.com/package/browsermonitor';
+const NPM_URL = 'https://www.npmjs.com/package/@romanmatena/browsermonitor';
 const GITHUB_URL = 'https://github.com/romanmatena/browsermonitor';
 
 export function printAppIntro() {

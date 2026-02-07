@@ -5,8 +5,8 @@
 # Browser Monitor
 
 [![CI](https://github.com/romanmatena/browsermonitor/actions/workflows/ci.yml/badge.svg)](https://github.com/romanmatena/browsermonitor/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/browsermonitor.svg)](https://www.npmjs.com/package/browsermonitor)
-[![npm downloads](https://img.shields.io/npm/dm/browsermonitor.svg)](https://www.npmjs.com/package/browsermonitor)
+[![npm](https://img.shields.io/npm/v/@romanmatena/browsermonitor.svg)](https://www.npmjs.com/package/@romanmatena/browsermonitor)
+[![npm downloads](https://img.shields.io/npm/dm/@romanmatena/browsermonitor.svg)](https://www.npmjs.com/package/@romanmatena/browsermonitor)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub](https://img.shields.io/badge/GitHub-romanmatena%2Fbrowsermonitor-24292e?logo=github)](https://github.com/romanmatena/browsermonitor)
@@ -14,7 +14,7 @@
 
 Browser console, network, DOM, and screenshot monitoring for debugging and LLM workflows.
 
-**[npm](https://www.npmjs.com/package/browsermonitor)** · **[GitHub](https://github.com/romanmatena/browsermonitor)**
+**[npm](https://www.npmjs.com/package/@romanmatena/browsermonitor)** · **[GitHub](https://github.com/romanmatena/browsermonitor)**
 
 [Installation](#installation) · [Quick Start](#quick-start) · [HTTP API](#http-api) · [Contributing](CONTRIBUTING.md)
 
@@ -46,14 +46,14 @@ Browser console, network, DOM, and screenshot monitoring for debugging and LLM w
 
 ## Installation
 
-Install globally from [npm](https://www.npmjs.com/package/browsermonitor):
+Install globally from [npm](https://www.npmjs.com/package/@romanmatena/browsermonitor):
 
 ```bash
 # Using npm
-npm install -g browsermonitor
+npm install -g @romanmatena/browsermonitor
 
 # Or pnpm
-pnpm add -g browsermonitor
+pnpm add -g @romanmatena/browsermonitor
 ```
 
 **Note:** Chromium download is skipped — browsermonitor uses your system Chrome/Chromium. No extra 300 MB download.
