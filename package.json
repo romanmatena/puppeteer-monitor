@@ -1,6 +1,6 @@
 {
   "name": "@romanmatena/browsermonitor",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Browser console, network, DOM monitoring for debugging and LLM workflows. Captures console, network, cookies, screenshot, DOM. HTTP API for LLM/scripts. WSL+Windows, Linux, Open/Join modes.",
   "type": "module",
   "bin": {
